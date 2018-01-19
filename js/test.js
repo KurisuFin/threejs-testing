@@ -19,7 +19,7 @@ function addLights() {
 }
 
 
-let santa = {
+let head = {
     hand: null,
     face: null,
     faceWireFrame: null,
@@ -65,6 +65,12 @@ class FacePart {
         }
     }
 
+    scaleFacePart(scale) {
+        this.mesh.scale.x = scale;
+        this.mesh.scale.y = scale;
+        this.mesh.scale.z = scale;
+    }
+
     calculatePosition(bulge, height, spread) {
         let s = degToRad(height);
         let t = degToRad(spread);
@@ -93,12 +99,12 @@ function createSanta() {
     createSantaHand();
     createFace();
     createEyes();
-    scene.add(santa.hand);
+    scene.add(head.hand);
 }
 
 
 function createSantaHand() {
-    santa.hand = new THREE.Object3D();
+    head.hand = new THREE.Object3D();
 }
 
 
@@ -106,35 +112,30 @@ function createSantaHand() {
 
 function createEyes() {
     let ballGeometry = createEyeBallGeometry();
-
-    let loader = new THREE.TextureLoader();
-    loader.load('img/flag.png');
-
-
-    // let material = new THREE.MeshBasicMaterial({color: 0xf9f9f9});
-    let material = new THREE.MeshBasicMaterial();
-    let lensGeometry = createEyeLensGeometry();
+    let material = new THREE.MeshBasicMaterial({color: 0xf9f9f9});
+    // let lensGeometry = createEyeLensGeometry();
     let lensMaterial = new THREE.MeshBasicMaterial({color: 0x111111});
 
     leftEye = new FacePart(ballGeometry, material);
     leftEye.addEdges();
-    santa.leftEye = new THREE.Object3D();
-    santa.leftEye.add(leftEye.mesh);
-    santa.hand.add(santa.leftEye);
+    head.leftEye = new THREE.Object3D();
+    head.leftEye.add(leftEye.mesh);
+    head.hand.add(head.leftEye);
 
-    leftLens = new FacePart(lensGeometry, lensMaterial);
-    santa.leftEye.add(leftLens.mesh);
+    // leftLens = new FacePart(lensGeometry, lensMaterial);
+    leftLens = new FacePart(ballGeometry, lensMaterial);
+    head.leftEye.add(leftLens.mesh);
 
     rightEye = new FacePart(ballGeometry, material);
     rightEye.setRightSide();
     rightEye.addEdges();
-    santa.rightEye = new THREE.Object3D();
-    santa.rightEye.add(rightEye.mesh);
-    santa.hand.add(santa.rightEye);
+    head.rightEye = new THREE.Object3D();
+    head.rightEye.add(rightEye.mesh);
+    head.hand.add(head.rightEye);
 
-    rightLens = new FacePart(lensGeometry, lensMaterial);
+    rightLens = new FacePart(ballGeometry, lensMaterial);
     rightLens.setRightSide();
-    santa.rightEye.add(rightLens.mesh);
+    head.rightEye.add(rightLens.mesh);
 
     moveEyes();
 }
@@ -161,13 +162,13 @@ function createFace() {
     let geometry = new THREE.SphereGeometry(100, 32, 32);
     let material = new THREE.MeshBasicMaterial({color: 0xffe0bd});
     let sphere = new THREE.Mesh(geometry, material);
-    santa.faceWireFrame = addEdges(sphere);
+    head.faceWireFrame = addEdges(sphere);
 
     sphere.position.y = 0;
     sphere.position.z = 0;
 
-    santa.face = sphere;
-    santa.hand.add(sphere);
+    head.face = sphere;
+    head.hand.add(sphere);
 }
 
 
@@ -206,6 +207,7 @@ function setupControls(gui) {
 
     eyeControls = {
         wireframe: false,
+        lensScale: 1,  // TODO
         bulge: 66,
         height: 22,
         spread: 29,
@@ -229,9 +231,12 @@ function setupControls(gui) {
 
 
 function moveEyes() {
+    let bulge = eyeControls.bulge;
     let height = eyeControls.height;
     let spread = eyeControls.spread;
-    let bulge = eyeControls.bulge;
+    let radius = eyeControls.radius;
+    let lensScale = Math.sin(tick / 60) / 2 + 1/2;
+    console.log(lensScale);
 
     if (leftEye) {
         leftEye.setWireframeVisibility(eyeControls.wireframe);
@@ -239,9 +244,10 @@ function moveEyes() {
         leftEye.calculateRotation(height, spread);
     }
     if (leftLens) {
-        leftLens.setWireframeVisibility(eyeControls.wireframe);
-        leftLens.calculatePosition(bulge+1, height, spread);
-        leftLens.calculateRotation(height, spread)
+        let lensBulge = bulge + (radius * (1 - lensScale)) + 0.5;
+        leftLens.scaleFacePart(lensScale);
+        leftLens.calculatePosition(lensBulge, height, spread);
+        leftLens.calculateRotation(height, spread);
     }
 
     if (rightEye) {
@@ -250,37 +256,35 @@ function moveEyes() {
         rightEye.calculateRotation(height, spread);
     }
     if (rightLens) {
-        rightLens.setWireframeVisibility(eyeControls.wireframe);
-        rightLens.calculatePosition(bulge+1, height, spread);
-        rightLens.calculateRotation(height, spread)
+        let lensBulge = bulge + (radius * (1 - lensScale)) + 0.5;
+        rightLens.scaleFacePart(lensScale);
+        rightLens.calculatePosition(lensBulge, height, spread);
+        rightLens.calculateRotation(height, spread);
     }
 }
 
 
 function recreateEyes() {
+    console.log('Recreate eyes');
     leftEye.recreate(createEyeBallGeometry());
-    leftLens.recreate(createEyeLensGeometry());
     rightEye.recreate(createEyeBallGeometry());
-    rightLens.recreate(createEyeLensGeometry());
 }
 
 
 function moveSphere() {
-    if (santa.hand) {
-        santa.hand.position.x = santaControls.px;
-        santa.hand.position.y = santaControls.py;
-        santa.hand.position.z = santaControls.pz;
-        santa.hand.rotation.x = degToRad(santaControls.rx);
-        santa.hand.rotation.y = degToRad(santaControls.ry);
-        santa.hand.rotation.z = degToRad(santaControls.rz);
+    if (head.hand) {
+        head.hand.position.x = santaControls.px;
+        head.hand.position.y = santaControls.py;
+        head.hand.position.z = santaControls.pz;
+        head.hand.rotation.x = degToRad(santaControls.rx);
+        head.hand.rotation.y = degToRad(santaControls.ry);
+        head.hand.rotation.z = degToRad(santaControls.rz);
     }
-    if (santa.faceWireFrame) {
-        santa.faceWireFrame.visible = santaControls.wireframe;
+    if (head.faceWireFrame) {
+        head.faceWireFrame.visible = santaControls.wireframe;
     }
 
     TWEEN.update();
-    leftLens.recreate(createEyeLensGeometry());
-    rightLens.recreate(createEyeLensGeometry());
 }
 
 
@@ -293,9 +297,9 @@ function createTweens() {
     tween = new TWEEN.Tween(position).to(target, 2000);
     tween.onUpdate(function () {
         console.log(position);
-        santa.hand.position.x = position.x;
-        santa.hand.position.y = position.y;
-        santa.hand.position.z = position.z;
+        head.hand.position.x = position.x;
+        head.hand.position.y = position.y;
+        head.hand.position.z = position.z;
     });
     tween.start();
 }
@@ -327,6 +331,7 @@ function animate() {
 
 function moveObjects(delta) {
     moveSphere();
+    moveEyes();
 }
 
 
